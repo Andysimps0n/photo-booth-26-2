@@ -7,7 +7,450 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-body {
-  margin: 0;
-  min-height: 100vh;
+* {
+  box-sizing: border-box;
 }
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  background: #111;
+  overscroll-behavior: none;
+}
+
+/* The app is always laid out as a phone screen. On wide screens (laptops) it is shown as a
+   phone-shaped column, centred on the dark page background. */
+:root {
+  --app-w: 100vw;
+}
+
+@media (min-aspect-ratio: 3/5) {
+  :root {
+    --app-w: calc(100dvh * 0.46);
+  }
+}
+
+.stage {
+  --controls: 132px;
+  position: relative;
+  width: var(--app-w);
+  margin: 0 auto;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Strip: full screen, photo area above the controls zone. cqw units scale text with the strip. */
+.strip {
+  container-type: size;
+  width: 100%;
+  height: 100dvh; /* the frame runs to the screen bottom; the shutter sits on its bottom border */
+  padding-bottom: var(--pad-bottom, var(--controls)); /* plain frames: reserve the shutter zone */
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  color: var(--ink);
+  position: relative;
+}
+
+/* Live text on artwork frames (Poor Story, loaded in index.html). */
+.strip-art-text {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  font-family: 'Poor Story', cursive;
+}
+
+.strip-art-text span {
+  position: absolute;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+/* Artwork frame: sits over the whole strip; its photo window is transparent. */
+.strip-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.strip-logo {
+  position: relative;
+  z-index: 2; /* keep the mode toggle above frame artwork */
+  flex: 0 0 var(--logo-h, 8%);
+  display: flex;
+  align-items: center;
+  padding-left: 10cqw;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 9cqw;
+  font-weight: 600;
+}
+
+.strip-logo span {
+  white-space: nowrap;
+}
+
+/* Toggle beside the title: one purple pill; a white thumb slides under the active icon. */
+.mode-toggle {
+  --seg-w: 40px;
+  position: relative;
+  flex: none;
+  display: flex;
+  margin-left: auto;
+  margin-right: 9cqw;
+  padding: 3px;
+  border: 0;
+  border-radius: 999px;
+  background: #6e6e6e;
+  cursor: pointer;
+}
+
+.mode-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: var(--seg-w);
+  height: 28px;
+  border-radius: 999px;
+  background: currentColor;
+  transition: transform 0.2s ease;
+}
+
+.mode-toggle[data-mono='true'] .mode-thumb {
+  transform: translateX(var(--seg-w));
+}
+
+.mode-seg {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: var(--seg-w);
+  height: 28px;
+  color: #fff;
+  transition: color 0.2s ease;
+}
+
+.mode-seg[data-active='true'] {
+  color: #6e6e6e;
+}
+
+/* Pager: current frame plus its neighbours side by side; the track follows the finger. */
+.pager {
+  position: relative;
+  width: 100%;
+  height: 100dvh;
+  flex: none;
+}
+
+.track {
+  position: absolute;
+  inset: 0;
+}
+
+.track.settling {
+  transition: transform 0.2s ease-out;
+}
+
+.page {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.page.ghost {
+  pointer-events: none;
+}
+
+.strip-body {
+  position: relative;
+  flex: 1;
+  display: grid;
+  grid-template-columns: 9cqw 1fr 9cqw;
+  min-height: 0;
+}
+
+.cells {
+  grid-column: 2;
+  display: grid;
+  grid-template-rows: repeat(3, 1fr);
+  gap: 0.6cqw;
+  min-height: 0;
+}
+
+.cell {
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Empty cells stay blank: a faint tint of the divider color, no content. */
+.cell video,
+.cell img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.cell video {
+  transform: scaleX(-1); /* mirror, like a real selfie preview */
+}
+
+/* Distortion filters: the warped picture (already mirrored by the shader) covers the hidden video. */
+.warp-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.cell.filled {
+  cursor: pointer;
+}
+
+.delete-btn {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.4);
+  color: #d9d9d9;
+}
+
+.delete-btn:active {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.cell.reorderable {
+  cursor: grab;
+  touch-action: none;
+}
+
+/* Neighbours glide aside only while a drag is active, so dropping never animates twice. */
+.cell.shifting {
+  transition: transform 0.18s ease;
+}
+
+.cell.dragging {
+  z-index: 3;
+  cursor: grabbing;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.edge {
+  display: grid;
+  grid-template-rows: repeat(3, 1fr);
+  grid-row: 1;
+  min-height: 0;
+}
+
+.edge-left {
+  grid-column: 1;
+}
+
+.edge-right {
+  grid-column: 3;
+}
+
+.edge-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+}
+
+.edge-left .edge-slot {
+  flex-direction: column;
+  justify-content: flex-start;
+  padding-top: 2cqw;
+  gap: 1cqw;
+  font-size: 3cqw;
+}
+
+.vtext {
+  writing-mode: vertical-rl;
+  font-size: 2.6cqw;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  white-space: nowrap;
+}
+
+.strip-footer {
+  flex: 0 0 var(--footer-h, 4%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.8cqw;
+  font-style: italic;
+  opacity: 0.85;
+}
+
+.notice {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin: 0;
+  padding: 16px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  text-align: center;
+  font-size: 15px;
+}
+
+.controls {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--controls);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding-bottom: env(safe-area-inset-bottom);
+  color: #fff; /* overridden inline with the frame's ink colour */
+}
+
+/* Instagram-style shutter: white ring with a solid inner disc that dips when pressed. */
+.shutter-btn {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  padding: 0;
+  /* border: 4px solid currentColor; */
+  border-radius: 50%;
+  background: transparent;
+}
+
+.shutter-btn::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.1s ease;
+}
+
+.shutter-btn:active::after {
+  transform: scale(0.85);
+}
+
+.shutter-btn:disabled {
+  opacity: 0.4;
+}
+
+/* Filter carousel: shutter-style buttons in a row; the centred one is the shutter. */
+.filter-carousel {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  touch-action: pan-y;
+}
+
+.filter-item {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 72px;
+  height: 72px;
+  padding: 0;
+  border: 3px solid transparent;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.filter-disc {
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  transition: transform 0.1s ease;
+}
+
+.filter-disc {
+  display: grid;
+  place-items: center;
+  font-size: 26px;
+  line-height: 1;
+  color: #f0c23e;
+}
+
+/* Live effect layer (e.g. music notes) over the camera in the live cell. */
+.effect-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.filter-item[data-current='true']:active .filter-disc {
+  transform: scale(0.85);
+}
+
+.filter-item:disabled {
+  opacity: 0.4 !important;
+}
+
+.filter-name {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 4px;
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+.reset-btn {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  padding: 0;
+  border: 4px solid currentColor;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  transition: background 0.1s ease;
+}
+
+.reset-btn:active {
+  background: color-mix(in srgb, currentColor 25%, transparent);
+}
+

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="2340" viewBox="0 0 1080 2340">
+  <!-- TEMPLATE for mono (single big photo). Canvas 1080 x 2340 px (aspect 0.46, a tall phone screen).
+       The art covers the WHOLE screen and is stretched to fit, so keep these proportions:
+       header 160, sides 97, NO bottom border - the photo window runs to the bottom of the screen
+       and the shutter button floats on top of the camera.
+       If you change the header height or add a bottom border, tell me: it is set in artSize in src/frames/index.js. -->
+  <rect id="frame-bg" width="1080" height="2340" fill="#dddddd"/>
+
+  <!-- Photo window: make this a real hole (transparent) in your artwork. -->
+  <g id="windows" fill="none" stroke="#e5484d" stroke-width="4" stroke-dasharray="16 10">
+    <rect id="window-1" x="97" y="160" width="886" height="2180"/>
+  </g>
+
+  <!-- Guides: delete before export. -->
+  <g id="guides" font-family="Helvetica, Arial, sans-serif" font-size="34" fill="#333">
+    <rect x="0" y="0" width="1080" height="160" fill="#4a90e2" fill-opacity="0.18"/>
+    <text x="40" y="60">HEADER (y 0-160) - title + toggle; keep right 380px clear (toggle)</text>
+    <!-- Shutter button floats over the camera here; about 200px across. Reset button uses the same spot. -->
+    <circle cx="540" cy="2157" r="100" fill="#e5484d" fill-opacity="0.25"/>
+    <text x="540" y="2165" text-anchor="middle">SHUTTER (over camera)</text>
+    <rect x="0" y="160" width="97" height="2180" fill="#50b36a" fill-opacity="0.18"/>
+    <rect x="983" y="160" width="97" height="2180" fill="#50b36a" fill-opacity="0.18"/>
+    <text x="540" y="1250" text-anchor="middle">window-1 886 x 2180</text>
+  </g>
+</svg>
