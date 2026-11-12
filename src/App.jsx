@@ -4,11 +4,12 @@ import { useCamera } from './hooks/useCamera.js'
 import { useWakeLock } from './hooks/useWakeLock.js'
 import { frames } from './frames/index.js'
 import { MODES } from './constants.js'
-import { ResetIcon } from './components/Icons.jsx'
+import { DownloadIcon, ResetIcon } from './components/Icons.jsx'
 import FilterCarousel from './components/FilterCarousel.jsx'
 import { filters, defaultFilterIndex } from './filters.js'
 import { randomNotes } from './effects/notes.js'
 import { captureWarped } from './effects/warp.js'
+import { composeStrip, saveImage, stripFilename } from './compose.js'
 
 const SWIPE_PX = 40 // drag distance that commits a frame change
 const LOCK_PX = 8 // movement before a gesture is classified horizontal/vertical
@@ -90,6 +91,9 @@ function App() {
   // Notes effect: a new random mix of note shapes/colours for each cell.
   const [notes, setNotes] = useState(randomNotes)
   const overlayRef = useRef(null) // effect canvas over the live cell, if the filter has one
+  // Finished strip as an image, composed ahead of time so Save can open the share sheet
+  // straight from the tap (iOS refuses share() after slow async work).
+  const [stripBlob, setStripBlob] = useState(null)
   const { stream, status } = useCamera()
   useWakeLock()
 
@@ -102,6 +106,7 @@ function App() {
   const activeIndex = photos.indexOf(null) // next empty cell, -1 when every cell is filled
   const full = activeIndex === -1
   const reorderable = full && photos.length > 1 // a single photo has nothing to reorder
+  const currentFrame = shown[current]
 
   const setMono = (mono) => {
     setMode(mono ? 'mono' : 'strip')
@@ -119,6 +124,27 @@ function App() {
     }, SETTLE_MS)
     return () => clearTimeout(t)
   }, [swipe, n])
+
+  // Re-compose whenever the finished strip changes (photos reordered, frame swiped, mode switched).
+  useEffect(() => {
+    if (!full || swipe.settling) return
+    const el = pagerRef.current?.querySelector('.page:not(.ghost) .strip')
+    if (!el) return
+    let cancelled = false
+    composeStrip(el, currentFrame)
+      .then((blob) => {
+        if (!cancelled) setStripBlob(blob)
+      })
+      .catch((err) => console.error('Couldn’t compose the strip', err))
+    return () => {
+      cancelled = true
+      setStripBlob(null) // the old image no longer matches the strip
+    }
+  }, [full, photos, currentFrame, swipe.settling])
+
+  const saveStrip = () => {
+    if (stripBlob) saveImage(stripBlob, stripFilename())
+  }
 
   const takePicture = () => {
     if (full || !videoRef.current) return
@@ -258,11 +284,22 @@ function App() {
 
       {status !== 'ready' && <p className="notice">{MESSAGES[status]}</p>}
 
-      <div className="controls" style={{ color: shown[current].ink }}>
+      <div className="controls" style={{ color: currentFrame.ink }}>
         {full ? (
-          <button type="button" className="reset-btn" aria-label="Start over" onClick={startOver}>
-            <ResetIcon size={32} />
-          </button>
+          <div className="control-row">
+            <button type="button" className="reset-btn" aria-label="Start over" onClick={startOver}>
+              <ResetIcon size={32} />
+            </button>
+            <button
+              type="button"
+              className="reset-btn"
+              aria-label="Save photo strip"
+              onClick={saveStrip}
+              disabled={!stripBlob}
+            >
+              <DownloadIcon size={32} />
+            </button>
+          </div>
         ) : (
           <FilterCarousel
             filters={filters}

@@ -454,3 +454,14 @@ body,
   background: color-mix(in srgb, currentColor 25%, transparent);
 }
 
+
+/* Finished strip: Start over and Save side by side. */
+.control-row {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.reset-btn:disabled {
+  opacity: 0.4;
+}
